@@ -1,104 +1,89 @@
+function GetUniqueEntities(entities)
+    local set = {}
+	-- ensure uniqueness
+    for _, entity in pairs(entities) do
+		set[entity[1]] = true
+    end
+    return set
+end
+
 function GetPartyMembers()
-    local set = {}
     local entities = Osi["DB_PartyMembers"]:Get(nil)
-	-- ensure uniqueness
-    for _, entity in pairs(entities) do
-		set[entity[1]] = true
-    end
-    return set
+    return GetUniqueEntities(entities)
 end
-
 function GetInRegion()
-    local set = {}
     local entities = Osi["DB_InRegion"]:Get(nil, nil)
-	-- ensure uniqueness
-    for _, entity in pairs(entities) do
-		set[entity[1]] = true
-    end
-    return set
+    return GetUniqueEntities(entities)
 end
 
 
-function ApplyToPartyMembers()
-    -- get all party members
+function ApplyPartyAll()
     local entities = GetPartyMembers()
-
-    -- add passive to each entity in party
     for entity, _ in pairs(entities) do
-		-- _P("Load/diff. add: " .. entity)
-		RemoveFromEntity(entity) -- ensure boost is removed
-		ApplyToPartyMember(entity)
+		ApplyPartySingle(entity)
     end
 end
-
-function RemoveFromPartyMembers()
-    -- get all party members
-    local entities = GetPartyMembers()
-
-    -- remove passive from each entity in party
-    for entity, _ in pairs(entities) do
-		-- _P("Load/diff. remove: " .. entity)
-		RemoveFromPartyMember(entity)
-    end
-end
-
-function ApplyToPartyMember(entity)
+function ApplyPartySingle(entity)
 	-- add party health boost if using tactician difficulty
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" then
-		-- _P("Apply: " .. entity)
+		-- _P("Apply Party: " .. entity)
+		RemoveNPCSingle(entity) -- ensure boost is removed
 		Osi.AddPassive(entity, "STATBOOST_HEALTH_PARTY")
 	end
 end
 
-function RemoveFromPartyMember(entity)
+function RemovePartyAll()
+    local entities = GetPartyMembers()
+    for entity, _ in pairs(entities) do
+		RemovePartySingle(entity)
+    end
+end
+function RemovePartySingle(entity)
 	-- _P("Remove Party: " .. entity)
 	Osi.RemovePassive(entity, "STATBOOST_HEALTH_PARTY")
 end
 
 
-function ApplyToEntities()
-    -- get all in region
+function ApplyOtherAll()
     local entities = GetInRegion()
-
-    -- conditionally add passive to each entity
     for entity, _ in pairs(entities) do
-		-- _P("Load/diff. add: " .. entity)
-		ApplyToEntity(entity)
+		ApplyOtherSingle(entity)
     end
 end
-
-function RemoveFromEntities()
-    -- get all in region
-    local entities = GetInRegion()
-
-    -- remove passive from each entity
-    for entity, _ in pairs(entities) do
-		-- _P("Load/diff. remove: " .. entity)
-		RemoveFromEntity(entity)
-    end
-end
-
-function ApplyToEntity(entity)
-	-- add entity health boost if using tactician difficulty
+function ApplyOtherSingle(entity)
+	-- add party health boost if using tactician difficulty
 	-- _P(not Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") and not Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") .. " " .. entity)
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
-		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 
-		and Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") == 0 then
-		-- _P("ApplyStatus: " .. entity)
-		Osi.ApplyStatus(entity, "HEALTHBOOST_HARDCORE", -1.0, 0, entity)
+		-- and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 
+		-- and Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") == 0
+		and Osi.HasPassive(entity, "STATBOOST_HEALTH_OTHER") == 0 then
+		-- _P("Apply Other: " .. entity)
+		Osi.AddPassive(entity, "STATBOOST_HEALTH_OTHER")
 	end
 end
 
-function RemoveFromEntity(entity)
-	-- _P("Remove Entity: " .. entity)
+function RemoveOtherAll()
+    local entities = GetInRegion()
+    for entity, _ in pairs(entities) do
+		RemoveOtherSingle(entity)
+    end
+end
+function RemoveOtherSingle(entity)
+	-- _P("Remove Other: " .. entity)
+	Osi.RemovePassive(entity, "STATBOOST_HEALTH_OTHER")
+end
+
+
+function RemoveNPCSingle(entity)
+	-- _P("Remove NPC: " .. entity)
 	Osi.RemoveStatus(entity, "HEALTHBOOST_HARDCORE", "NULL_00000000-0000-0000-0000-000000000000")
 end
 
 
 -- LevelGameplayStarted
 Ext.Osiris.RegisterListener("LevelGameplayStarted", 2, "after", function(level, isEditorMode)
-    ApplyToPartyMembers()
-	ApplyToEntities()
+	ApplyOtherAll()
+    ApplyPartyAll()
 end)
 
 -- RulesetModifierChangedString
@@ -110,29 +95,29 @@ Ext.Osiris.RegisterListener("RulesetModifierChangedString", 3, "after", function
 		-- enabled tactician difficulty
 		if new == "STATUS_HARD" then
 			if old ~= "STATUS_HARD" then
-				ApplyToPartyMembers()
-				ApplyToEntities()
+				ApplyOtherAll()
+				ApplyPartyAll()
 			end
 		-- disabled tactician difficulty
 		elseif old == "STATUS_HARD" then
 			if new ~= "STATUS_HARD" then
-				RemoveFromPartyMembers()
-				RemoveFromEntities()
+				RemoveOtherAll()
+				RemovePartyAll()
 			end
 		end
+	end
+end)
+
+-- EnteredLevel
+Ext.Osiris.RegisterListener("EnteredLevel", 3, "after", function(object, objectRootTemplate, level)
+	-- _P("Entered Level: " .. object .. " " .. IsCharacter(object) .. " " .. level)
+	if IsCharacter(object) == 1 then
+		ApplyOtherSingle(object)
 	end
 end)
 
 -- CharacterJoinedParty
 Ext.Osiris.RegisterListener("CharacterJoinedParty", 1, "after", function(entity)
 	-- _P("Joined Party: " .. entity)
-	RemoveFromEntity(entity)
-	ApplyToPartyMember(entity)
-end)
-
--- CharacterLeftParty
-Ext.Osiris.RegisterListener("CharacterLeftParty", 1, "after", function(entity)
-	-- _P("Left Party: " .. entity)
-	RemoveFromPartyMember(entity)
-	ApplyToEntity(entity)
+	ApplyPartySingle(entity)
 end)
