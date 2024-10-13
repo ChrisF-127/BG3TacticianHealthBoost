@@ -25,7 +25,8 @@ function ApplyPartyAll()
 end
 function ApplyPartySingle(entity)
 	-- add party health boost if using tactician difficulty
-	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" then
+	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
+		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 then
 		-- _P("Apply Party: " .. entity)
 		RemoveNPCSingle(entity) -- ensure boost is removed
 		Osi.AddPassive(entity, "STATBOOST_HEALTH_PARTY")
