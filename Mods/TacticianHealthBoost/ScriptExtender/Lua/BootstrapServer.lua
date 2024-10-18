@@ -28,7 +28,8 @@ function ApplyPartySingle(entity)
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
 		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 then
 		-- _P("Apply Party: " .. entity)
-		RemoveNPCSingle(entity) -- ensure boost is removed
+		RemoveNPCSingle(entity) 	-- ensure boost is removed
+		RemoveOtherSingle(entity)	-- ensure boost is removed
 		Osi.AddPassive(entity, "STATBOOST_HEALTH_PARTY")
 	end
 end
@@ -42,6 +43,7 @@ end
 function RemovePartySingle(entity)
 	-- _P("Remove Party: " .. entity)
 	Osi.RemovePassive(entity, "STATBOOST_HEALTH_PARTY")
+	ApplyOtherSingle(entity)
 end
 
 
@@ -55,7 +57,7 @@ function ApplyOtherSingle(entity)
 	-- add party health boost if using tactician difficulty
 	-- _P(not Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") and not Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") .. " " .. entity)
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
-		-- and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 
+		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 
 		-- and Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") == 0
 		and Osi.HasPassive(entity, "STATBOOST_HEALTH_OTHER") == 0 then
 		-- _P("Apply Other: " .. entity)
@@ -83,8 +85,8 @@ end
 
 -- LevelGameplayStarted
 Ext.Osiris.RegisterListener("LevelGameplayStarted", 2, "after", function(level, isEditorMode)
-	ApplyOtherAll()
     ApplyPartyAll()
+	ApplyOtherAll()
 end)
 
 -- RulesetModifierChangedString
@@ -96,14 +98,14 @@ Ext.Osiris.RegisterListener("RulesetModifierChangedString", 3, "after", function
 		-- enabled tactician difficulty
 		if new == "STATUS_HARD" then
 			if old ~= "STATUS_HARD" then
-				ApplyOtherAll()
 				ApplyPartyAll()
+				ApplyOtherAll()
 			end
 		-- disabled tactician difficulty
 		elseif old == "STATUS_HARD" then
 			if new ~= "STATUS_HARD" then
-				RemoveOtherAll()
 				RemovePartyAll()
+				RemoveOtherAll()
 			end
 		end
 	end
@@ -121,4 +123,10 @@ end)
 Ext.Osiris.RegisterListener("CharacterJoinedParty", 1, "after", function(entity)
 	-- _P("Joined Party: " .. entity)
 	ApplyPartySingle(entity)
+end)
+
+-- CharacterLeftParty
+Ext.Osiris.RegisterListener("CharacterLeftParty", 1, "after", function(entity)
+	-- _P("Left Party: " .. entity)
+	RemovePartySingle(entity)
 end)
