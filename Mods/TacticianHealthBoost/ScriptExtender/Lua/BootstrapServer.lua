@@ -26,11 +26,9 @@ end
 function ApplyPartySingle(entity)
 	-- add party health boost if using tactician difficulty
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
-		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 then
+		and Osi.HasAppliedStatus(entity, "HEALTHBOOST_HARDCORE_PARTY") == 0 then
 		-- _P("Apply Party: " .. entity)
-		RemoveNPCSingle(entity) 	-- ensure boost is removed
-		RemoveOtherSingle(entity)	-- ensure boost is removed
-		Osi.AddPassive(entity, "STATBOOST_HEALTH_PARTY")
+		Osi.ApplyStatus(entity, "HEALTHBOOST_HARDCORE_PARTY", -1.0, 0, entity)
 	end
 end
 
@@ -42,8 +40,7 @@ function RemovePartyAll()
 end
 function RemovePartySingle(entity)
 	-- _P("Remove Party: " .. entity)
-	Osi.RemovePassive(entity, "STATBOOST_HEALTH_PARTY")
-	ApplyOtherSingle(entity)
+	Osi.RemoveStatus(entity, "HEALTHBOOST_HARDCORE_PARTY", "NULL_00000000-0000-0000-0000-000000000000")
 end
 
 
@@ -55,13 +52,10 @@ function ApplyOtherAll()
 end
 function ApplyOtherSingle(entity)
 	-- add party health boost if using tactician difficulty
-	-- _P(not Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") and not Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") .. " " .. entity)
 	if Osi.GetRulesetModifierString("7d788f28-1df5-474b-b106-4f8d0b6de928") == "STATUS_HARD" 
-		and Osi.HasPassive(entity, "STATBOOST_HEALTH_PARTY") == 0 
-		-- and Osi.HasPassive(entity, "STATBOOST_HEALTH_NPC") == 0
-		and Osi.HasPassive(entity, "STATBOOST_HEALTH_OTHER") == 0 then
+		and Osi.HasAppliedStatus(entity, "HEALTHBOOST_HARDCORE_OTHER") == 0 then
 		-- _P("Apply Other: " .. entity)
-		Osi.AddPassive(entity, "STATBOOST_HEALTH_OTHER")
+		Osi.ApplyStatus(entity, "HEALTHBOOST_HARDCORE_OTHER", -1.0, 0, entity)
 	end
 end
 
@@ -73,7 +67,7 @@ function RemoveOtherAll()
 end
 function RemoveOtherSingle(entity)
 	-- _P("Remove Other: " .. entity)
-	Osi.RemovePassive(entity, "STATBOOST_HEALTH_OTHER")
+	Osi.RemoveStatus(entity, "HEALTHBOOST_HARDCORE_OTHER", "NULL_00000000-0000-0000-0000-000000000000")
 end
 
 
@@ -85,8 +79,8 @@ end
 
 -- LevelGameplayStarted
 Ext.Osiris.RegisterListener("LevelGameplayStarted", 2, "after", function(level, isEditorMode)
-    ApplyPartyAll()
 	ApplyOtherAll()
+    ApplyPartyAll()
 end)
 
 -- RulesetModifierChangedString
@@ -98,14 +92,14 @@ Ext.Osiris.RegisterListener("RulesetModifierChangedString", 3, "after", function
 		-- enabled tactician difficulty
 		if new == "STATUS_HARD" then
 			if old ~= "STATUS_HARD" then
-				ApplyPartyAll()
 				ApplyOtherAll()
+				ApplyPartyAll()
 			end
 		-- disabled tactician difficulty
 		elseif old == "STATUS_HARD" then
 			if new ~= "STATUS_HARD" then
-				RemovePartyAll()
 				RemoveOtherAll()
+				RemovePartyAll()
 			end
 		end
 	end
@@ -115,8 +109,19 @@ end)
 Ext.Osiris.RegisterListener("EnteredLevel", 3, "after", function(object, objectRootTemplate, level)
 	-- _P("Entered Level: " .. object .. " " .. IsCharacter(object) .. " " .. level)
 	if IsCharacter(object) == 1 then
-		ApplyOtherSingle(object)
+		if IsPartyMember(object, 0) == 1 then
+			ApplyPartySingle(object)
+		else
+			ApplyOtherSingle(object)
+		end
 	end
+end)
+
+-- LongRestFinished
+Ext.Osiris.RegisterListener("LongRestFinished", 0, "after", function()
+	-- _P("LongRestFinished")
+	ApplyOtherAll()
+	ApplyPartyAll()
 end)
 
 -- CharacterJoinedParty
